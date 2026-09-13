@@ -23,6 +23,11 @@
       "groupSlug": "all-dependencies",
       "separateMajorMinor": false,
       "separateMultipleMajor": false
+    },
+    {
+      "description": "Keep pnpm on the CI-compatible major",
+      "matchDepNames": ["pnpm"],
+      "allowedVersions": "<11"
     }
   ]
 }
