@@ -19,7 +19,7 @@ Run **Remote: Remove Bitbucket API Token** to delete the stored token.
 
 ## Write safety
 
-Bitbucket file editing is disabled in 1.0. Branch and pull-request actions remain available when the token
+Bitbucket file editing is currently disabled. Branch and pull-request actions remain available when the token
 has matching scopes. File commits will be enabled only after Bitbucket's upload API proves atomic
 stale-parent rejection. This prevents concurrent branch changes from being overwritten.
 

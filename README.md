@@ -99,10 +99,6 @@ extension settings that sync as plaintext.
 
 ## Migration and rollback
 
-This rewrite removes the legacy provider-bound extension surface. Old schemes and commands are not
-supported. The transition remains an uncommitted Git change until reviewed. Rollback is a normal Git
-revert of this change set; no remote repository data migration or mutation occurs during installation.
-
-The legacy source contained a plaintext credential. Removing the file does not remove the secret from Git
-history. Revoke and rotate that credential in its external account, then rewrite repository history if the
-repository has been shared. This project cannot perform external credential revocation.
+This repository is the canonical provider-neutral rewrite. Old schemes and commands are not supported.
+Rollback is a normal Git revert or installation of an earlier VSIX; installing the extension does not migrate
+or mutate remote repository data.

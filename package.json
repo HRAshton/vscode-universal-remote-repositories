@@ -1,7 +1,7 @@
 {
   "name": "vscode-universal-remote-repositories",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0-alpha.1",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
     "setup": "pnpm install --frozen-lockfile",
