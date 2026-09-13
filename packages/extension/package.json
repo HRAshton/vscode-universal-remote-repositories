@@ -2,7 +2,7 @@
   "name": "universal-remote-repositories",
   "displayName": "Universal Remote Repositories",
   "description": "Browse and edit remote repositories without a local clone.",
-  "version": "1.0.0",
+  "version": "0.1.0-alpha.1",
   "publisher": "hrashton",
   "license": "MIT",
   "repository": {

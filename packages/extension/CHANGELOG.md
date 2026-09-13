@@ -1,6 +1,6 @@
 ﻿# Changelog
 
-## 1.0.0
+## 0.1.0-alpha.1
 
 - Added browser-first Bitbucket Cloud repository browsing.
 - Added secure API-token authentication through VS Code SecretStorage.
