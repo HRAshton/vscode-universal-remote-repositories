@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist/typecheck",
+    "tsBuildInfoFile": "dist/typecheck/userscript.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,151 @@
+{
+  "name": "universal-remote-repositories",
+  "displayName": "Universal Remote Repositories",
+  "description": "Browse and edit remote repositories without a local clone.",
+  "version": "1.0.0",
+  "publisher": "hrashton",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HRAshton/vscode-universal-remote-repositories.git"
+  },
+  "homepage": "https://github.com/HRAshton/vscode-universal-remote-repositories#readme",
+  "bugs": {
+    "url": "https://github.com/HRAshton/vscode-universal-remote-repositories/issues"
+  },
+  "categories": [
+    "Source Control"
+  ],
+  "keywords": [
+    "remote",
+    "repository",
+    "bitbucket",
+    "browser",
+    "source control"
+  ],
+  "files": [
+    "dist/extension.js",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "browser": "./dist/extension.js",
+  "activationEvents": [
+    "onFileSystem:remote",
+    "onCommand:remote.openRepository",
+    "onCommand:remote.signInBitbucket",
+    "onCommand:remote.signOutBitbucket"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "remote.openRepository",
+        "title": "Remote: Open Repository"
+      },
+      {
+        "command": "remote.signInBitbucket",
+        "title": "Remote: Set Bitbucket API Token"
+      },
+      {
+        "command": "remote.signOutBitbucket",
+        "title": "Remote: Remove Bitbucket API Token"
+      },
+      {
+        "command": "remote.switchBranch",
+        "title": "Remote: Switch Branch"
+      },
+      {
+        "command": "remote.createBranch",
+        "title": "Remote: Create Branch"
+      },
+      {
+        "command": "remote.deleteBranch",
+        "title": "Remote: Delete Branch"
+      },
+      {
+        "command": "remote.viewHistory",
+        "title": "Remote: View History"
+      },
+      {
+        "command": "remote.createPullRequest",
+        "title": "Remote: Create Pull Request"
+      },
+      {
+        "command": "remote.refresh",
+        "title": "Remote: Refresh"
+      },
+      {
+        "command": "remote.commit",
+        "title": "Commit"
+      },
+      {
+        "command": "remote.discard",
+        "title": "Discard Change",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "remote.discardAll",
+        "title": "Discard All Changes",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "remote.openChange",
+        "title": "Open Change"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "remote.pullRequests",
+          "name": "Remote Pull Requests"
+        },
+        {
+          "id": "remote.statuses",
+          "name": "Remote Commit Statuses"
+        },
+        {
+          "id": "remote.pipelines",
+          "name": "Remote Pipelines"
+        }
+      ]
+    },
+    "menus": {
+      "scm/resourceState/context": [
+        {
+          "command": "remote.openChange",
+          "group": "inline@0",
+          "when": "scmProvider == remote"
+        },
+        {
+          "command": "remote.discard",
+          "group": "inline@1",
+          "when": "scmProvider == remote"
+        }
+      ],
+      "scm/resourceGroup/context": [
+        {
+          "command": "remote.discardAll",
+          "group": "1_modification",
+          "when": "scmProvider == remote"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@remote/bitbucket-adapter": "workspace:*",
+    "@remote/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@remote/bitbucket-datacenter-adapter": "workspace:*",
+    "@remote/fake-adapter": "workspace:*"
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=browser --format=cjs --external:vscode --outfile=dist/extension.js",
+    "build:datacenter": "node build-datacenter.mjs",
+    "build:test": "esbuild src/test-extension.ts --bundle --platform=browser --format=cjs --external:vscode --outfile=dist/extension.js",
+    "typecheck": "tsc -b"
+  }
+}

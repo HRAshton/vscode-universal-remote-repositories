@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/fake-adapter" },
+    { "path": "./packages/bitbucket-adapter" },
+    { "path": "./packages/bitbucket-datacenter-adapter" },
+    { "path": "./packages/extension" },
+    { "path": "./packages/integration-tests" },
+    { "path": "./packages/userscript" },
+    { "path": "./packages/e2e" }
+  ]
+}

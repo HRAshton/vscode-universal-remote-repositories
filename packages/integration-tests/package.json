@@ -1,0 +1,14 @@
+{
+  "name": "@remote/integration-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@remote/core": "workspace:*",
+    "@remote/fake-adapter": "workspace:*"
+  }
+}

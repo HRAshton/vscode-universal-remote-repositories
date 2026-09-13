@@ -1,0 +1,36 @@
+{
+  "name": "vscode-universal-remote-repositories",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.15.1",
+  "scripts": {
+    "setup": "pnpm install --frozen-lockfile",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "typecheck": "tsc -b --pretty false",
+    "test:unit": "pnpm --filter @remote/core test",
+    "test:adapter": "pnpm --filter @remote/bitbucket-adapter test",
+    "test:datacenter-adapter": "pnpm --filter @remote/bitbucket-datacenter-adapter test",
+    "test:integration": "pnpm --filter @remote/integration-tests test",
+    "test:userscript": "pnpm --filter @remote/bitbucket-datacenter-userscript test",
+    "test:e2e": "pnpm --filter @remote/e2e test:e2e",
+    "test": "pnpm test:unit && pnpm test:adapter && pnpm test:datacenter-adapter && pnpm test:integration && pnpm test:userscript",
+    "build": "pnpm --filter universal-remote-repositories build",
+    "build:datacenter": "pnpm --filter @remote/bitbucket-datacenter-userscript build && pnpm --filter universal-remote-repositories build:datacenter",
+    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "package:vsix": "pnpm build && node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\" && pnpm --dir packages/extension exec vsce package --no-dependencies --out ../../artifacts/universal-remote-repositories.vsix"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.3.0",
+    "@types/vscode": "^1.103.0",
+    "@vscode/vsce": "^3.6.2",
+    "@vscode/test-web": "^0.0.81",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.4"
+  }
+}

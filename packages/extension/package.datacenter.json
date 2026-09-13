@@ -1,0 +1,52 @@
+{
+  "name": "universal-remote-repositories-datacenter",
+  "displayName": "Universal Remote Repositories for Bitbucket Data Center",
+  "description": "Browse Bitbucket Data Center repositories using the current browser session.",
+  "version": "0.1.0",
+  "publisher": "hrashton",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HRAshton/vscode-universal-remote-repositories.git"
+  },
+  "homepage": "https://github.com/HRAshton/vscode-universal-remote-repositories#readme",
+  "bugs": {
+    "url": "https://github.com/HRAshton/vscode-universal-remote-repositories/issues"
+  },
+  "categories": ["Source Control"],
+  "keywords": ["remote", "repository", "bitbucket", "data center", "browser"],
+  "files": ["extension.js", "README.md", "LICENSE"],
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "browser": "./extension.js",
+  "activationEvents": ["onFileSystem:remote", "onCommand:remote.openRepository"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "remote.openRepository",
+        "title": "Remote: Open Data Center Repository"
+      },
+      {
+        "command": "remote.switchBranch",
+        "title": "Remote: Switch Branch"
+      },
+      {
+        "command": "remote.viewHistory",
+        "title": "Remote: View History"
+      },
+      {
+        "command": "remote.refresh",
+        "title": "Remote: Refresh"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "remote.pullRequests",
+          "name": "Remote Pull Requests"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,75 @@
+﻿name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify tag matches extension version
+        shell: bash
+        run: |
+          version="$(node --print "require('./packages/extension/package.json').version")"
+          test "$GITHUB_REF_NAME" = "v$version"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run ci
+      - run: pnpm run package:vsix
+      - name: Create checksum
+        working-directory: artifacts
+        run: sha256sum universal-remote-repositories.vsix > universal-remote-repositories.vsix.sha256
+      - name: Attest VSIX provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: artifacts/universal-remote-repositories.vsix
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: extension
+          path: artifacts/
+          if-no-files-found: error
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: extension
+          path: artifacts
+      - name: Verify checksum
+        working-directory: artifacts
+        run: sha256sum -c universal-remote-repositories.vsix.sha256
+      - name: Create GitHub release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          artifacts/universal-remote-repositories.vsix
+          artifacts/universal-remote-repositories.vsix.sha256
+          --generate-notes
+          --title "$GITHUB_REF_NAME"
+          --verify-tag

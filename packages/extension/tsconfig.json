@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist/typecheck",
+    "tsBuildInfoFile": "dist/typecheck/extension.tsbuildinfo",
+    "types": ["vscode"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../bitbucket-adapter" },
+    { "path": "../bitbucket-datacenter-adapter" },
+    { "path": "../fake-adapter" }
+  ]
+}

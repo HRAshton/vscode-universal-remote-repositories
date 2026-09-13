@@ -1,0 +1,14 @@
+{
+  "name": "@remote/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "pretest:e2e": "pnpm --filter universal-remote-repositories build:test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "universal-remote-repositories": "workspace:*"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@remote/bitbucket-datacenter-userscript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "build:demo": "node esbuild.mjs --demo-only",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  }
+}
