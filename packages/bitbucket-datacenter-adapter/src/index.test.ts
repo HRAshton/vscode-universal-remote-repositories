@@ -132,6 +132,77 @@ describe('BitbucketDataCenterAdapter', () => {
     await expect(adapter.listDirectory(repositoryId, 'abc', '')).resolves.toHaveLength(2);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it('uses branch-utils to create and delete branches', async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') return json({ displayId: 'feature/demo', latestCommit: 'abc123' });
+      return new Response(null, { status: 204 });
+    });
+    const adapter = new BitbucketDataCenterAdapter({
+      apiBaseUrl: 'https://stash.example.test/bitbucket/rest/api/1.0/',
+      fetch: fetcher,
+    });
+    const repositoryId = encodeRepositoryId({ project: 'DEMO', repository: 'app' });
+
+    await expect(adapter.createBranch(repositoryId, 'feature/demo', 'abc123')).resolves.toEqual({
+      name: 'feature/demo',
+      head: 'abc123',
+    });
+    await adapter.deleteBranch(repositoryId, 'feature/demo');
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      new URL('https://stash.example.test/bitbucket/rest/branch-utils/1.0/projects/DEMO/repos/app/branches'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'feature/demo', startPoint: 'abc123' }),
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      new URL(
+        'https://stash.example.test/bitbucket/rest/branch-utils/1.0/projects/DEMO/repos/app/branches?name=feature%2Fdemo',
+      ),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('qualifies pull request refs with their repository identity', async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      json({
+        id: 42,
+        title: 'Demo',
+        description: '',
+        state: 'OPEN',
+        fromRef: { displayId: 'feature/demo' },
+        toRef: { displayId: 'main' },
+      }),
+    );
+    const adapter = new BitbucketDataCenterAdapter({
+      apiBaseUrl: 'https://stash.example.test/rest/api/1.0/',
+      fetch: fetcher,
+    });
+    const repositoryId = encodeRepositoryId({ project: 'DEMO', repository: 'app' });
+
+    await adapter.createPullRequest(repositoryId, {
+      title: 'Demo',
+      description: '',
+      sourceBranch: 'feature/demo',
+      targetBranch: 'main',
+    });
+
+    const init = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      fromRef: {
+        id: 'refs/heads/feature/demo',
+        repository: { slug: 'app', project: { key: 'DEMO' } },
+      },
+      toRef: {
+        id: 'refs/heads/main',
+        repository: { slug: 'app', project: { key: 'DEMO' } },
+      },
+    });
+  });
 });
 
 function json(value: unknown, status = 200): Response {

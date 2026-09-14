@@ -35,13 +35,19 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run ci
       - run: pnpm run package:vsix
-      - name: Create checksum
+      - run: pnpm run package:vsix:datacenter
+      - run: pnpm --filter @remote/bitbucket-datacenter-userscript build
+      - run: cp packages/userscript/dist/bitbucket-vscode.user.js artifacts/bitbucket-datacenter-vscode.user.js
+      - run: cp packages/userscript/dist/bitbucket-vscode-workbench-relay.js artifacts/bitbucket-datacenter-workbench-relay.js
+      - name: Create checksums
         working-directory: artifacts
-        run: sha256sum universal-remote-repositories.vsix > universal-remote-repositories.vsix.sha256
-      - name: Attest VSIX provenance
+        run: sha256sum *.vsix *.js > SHA256SUMS
+      - name: Attest extension provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
-          subject-path: artifacts/universal-remote-repositories.vsix
+          subject-path: |
+            artifacts/universal-remote-repositories.vsix
+            artifacts/universal-remote-repositories-datacenter.vsix
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: extension
@@ -59,9 +65,9 @@ jobs:
         with:
           name: extension
           path: artifacts
-      - name: Verify checksum
+      - name: Verify checksums
         working-directory: artifacts
-        run: sha256sum -c universal-remote-repositories.vsix.sha256
+        run: sha256sum -c SHA256SUMS
       - name: Create GitHub release
         env:
           GH_REPO: ${{ github.repository }}
@@ -74,7 +80,10 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" \
             artifacts/universal-remote-repositories.vsix \
-            artifacts/universal-remote-repositories.vsix.sha256 \
+            artifacts/universal-remote-repositories-datacenter.vsix \
+            artifacts/bitbucket-datacenter-vscode.user.js \
+            artifacts/bitbucket-datacenter-workbench-relay.js \
+            artifacts/SHA256SUMS \
             --generate-notes \
             --title "$GITHUB_REF_NAME" \
             --verify-tag \

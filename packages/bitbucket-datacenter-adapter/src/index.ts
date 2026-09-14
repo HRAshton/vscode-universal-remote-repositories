@@ -13,6 +13,16 @@ import {
   type TreeEntry,
 } from '@remote/core';
 
+export {
+  BitbucketDataCenterBridgeAdapter,
+  type BitbucketDataCenterBridgeOptions,
+  BitbucketDataCenterBridgeServer,
+  connectBitbucketDataCenterBridge,
+  createBridgeLaunch,
+  createBridgeLaunchFromQuery,
+  relayBitbucketDataCenterBridge,
+} from './bridge.js';
+
 const DEFAULT_TIMEOUT_MS = 30_000;
 const PAGE_LIMIT = 100;
 
@@ -35,11 +45,13 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
   } as const;
 
   private readonly apiBaseUrl: URL;
+  private readonly branchUtilsBaseUrl: URL;
   private readonly fetcher: typeof fetch;
   private readonly requestTimeoutMs: number;
 
   constructor(options: BitbucketDataCenterAdapterOptions) {
     this.apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
+    this.branchUtilsBaseUrl = branchUtilsBaseUrl(this.apiBaseUrl);
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
@@ -136,12 +148,41 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async createBranch(): Promise<Branch> {
-    throw unsupported('Branch creation');
+  async createBranch(
+    repositoryId: string,
+    name: string,
+    fromCommit: string,
+    options?: RemoteRequestOptions,
+  ): Promise<Branch> {
+    const locator = decodeRepositoryId(repositoryId);
+    const branch = record(
+      await this.getJson(
+        `${repositoryPath(locator)}/branches`,
+        options,
+        {
+          method: 'POST',
+          body: JSON.stringify({ name, startPoint: fromCommit }),
+        },
+        this.branchUtilsBaseUrl,
+      ),
+    );
+    return {
+      name: requiredString(branch, 'displayId', 'branch'),
+      head: requiredString(branch, 'latestCommit', 'branch'),
+    };
   }
 
-  async deleteBranch(): Promise<void> {
-    throw unsupported('Branch deletion');
+  async deleteBranch(repositoryId: string, name: string, options?: RemoteRequestOptions): Promise<void> {
+    const locator = decodeRepositoryId(repositoryId);
+    await this.request(
+      `${repositoryPath(locator)}/branches?name=${encodeURIComponent(name)}`,
+      options,
+      'application/json',
+      {
+        method: 'DELETE',
+      },
+      this.branchUtilsBaseUrl,
+    );
   }
 
   async listCommits(
@@ -167,8 +208,25 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     );
   }
 
-  async createPullRequest(_repositoryId: string, _input: CreatePullRequestInput): Promise<PullRequest> {
-    throw unsupported('Pull request creation');
+  async createPullRequest(
+    repositoryId: string,
+    input: CreatePullRequestInput,
+    options?: RemoteRequestOptions,
+  ): Promise<PullRequest> {
+    const locator = decodeRepositoryId(repositoryId);
+    return toPullRequest(
+      record(
+        await this.getJson(`${repositoryPath(locator)}/pull-requests`, options, {
+          method: 'POST',
+          body: JSON.stringify({
+            title: input.title,
+            description: input.description,
+            fromRef: pullRequestRef(input.sourceBranch, locator),
+            toRef: pullRequestRef(input.targetBranch, locator),
+          }),
+        }),
+      ),
+    );
   }
 
   async listCommitStatuses(): Promise<CommitStatus[]> {
@@ -221,8 +279,13 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     }
   }
 
-  private async getJson(path: string, options?: RemoteRequestOptions): Promise<unknown> {
-    const response = await this.request(path, options);
+  private async getJson(
+    path: string,
+    options?: RemoteRequestOptions,
+    init?: RequestInit,
+    baseUrl = this.apiBaseUrl,
+  ): Promise<unknown> {
+    const response = await this.request(path, options, 'application/json', init, baseUrl);
     const contentType = response.headers.get('Content-Type') ?? '';
     if (contentType.includes('text/html')) {
       throw new RemoteError('authentication', 'Bitbucket returned a login page. Sign in and try again.');
@@ -238,28 +301,32 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     path: string,
     options?: RemoteRequestOptions,
     accept = 'application/json',
+    init?: RequestInit,
+    baseUrl = this.apiBaseUrl,
   ): Promise<Response> {
-    const url = new URL(path.replace(/^\//u, ''), this.apiBaseUrl);
-    if (url.origin !== this.apiBaseUrl.origin || !url.pathname.startsWith(this.apiBaseUrl.pathname)) {
+    const url = new URL(path.replace(/^\//u, ''), baseUrl);
+    if (url.origin !== baseUrl.origin || !url.pathname.startsWith(baseUrl.pathname)) {
       throw invalid('Refusing to request an URL outside the configured Bitbucket API.');
     }
     const linked = linkedAbort(options?.signal, this.requestTimeoutMs);
     try {
       const response = await this.fetcher(url, {
         credentials: 'same-origin',
-        headers: { Accept: accept },
+        headers: {
+          Accept: accept,
+          ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...init?.headers,
+        },
         redirect: 'manual',
         signal: linked.signal,
+        ...init,
       });
       if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
         throw new RemoteError('authentication', 'Bitbucket redirected the request. Sign in and try again.');
       }
       if (response.url) {
         const finalUrl = new URL(response.url);
-        if (
-          finalUrl.origin !== this.apiBaseUrl.origin ||
-          !finalUrl.pathname.startsWith(this.apiBaseUrl.pathname)
-        ) {
+        if (finalUrl.origin !== baseUrl.origin || !finalUrl.pathname.startsWith(baseUrl.pathname)) {
           throw new RemoteError('authentication', 'Bitbucket redirected the request outside its REST API.');
         }
       }
@@ -315,8 +382,22 @@ function normalizeApiBaseUrl(value: string): URL {
   return url;
 }
 
+function branchUtilsBaseUrl(apiBaseUrl: URL): URL {
+  const url = new URL(apiBaseUrl);
+  if (!url.pathname.endsWith('/api/1.0/')) throw invalid('Bitbucket API URL must end in /api/1.0/.');
+  url.pathname = `${url.pathname.slice(0, -'/api/1.0/'.length)}/branch-utils/1.0/`;
+  return url;
+}
+
 function repositoryPath(locator: RepositoryLocator): string {
   return `projects/${encodeURIComponent(locator.project)}/repos/${encodeURIComponent(locator.repository)}`;
+}
+
+function pullRequestRef(branch: string, locator: RepositoryLocator) {
+  return {
+    id: `refs/heads/${branch}`,
+    repository: { slug: locator.repository, project: { key: locator.project } },
+  };
 }
 
 function encodePath(path: string): string {
