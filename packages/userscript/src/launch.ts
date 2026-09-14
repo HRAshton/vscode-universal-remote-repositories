@@ -34,6 +34,16 @@ export function apiBaseUrl(context: BitbucketPageContext): string {
   return new URL(`${context.contextPath}/rest/api/1.0/`, context.origin).toString();
 }
 
+export function launchContextKey(context: BitbucketPageContext): string {
+  return JSON.stringify([
+    context.origin,
+    context.contextPath,
+    context.project,
+    context.repository,
+    context.ref ?? '',
+  ]);
+}
+
 function repositoryId(context: BitbucketPageContext): string {
   return encodeRepositoryId({ project: context.project, repository: context.repository });
 }

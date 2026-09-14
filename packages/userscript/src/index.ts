@@ -3,7 +3,7 @@ import {
   BitbucketDataCenterBridgeServer,
 } from '@remote/bitbucket-datacenter-adapter';
 import { parseBitbucketPage } from './context.js';
-import { createWorkbenchUrl, resolveLaunchRef } from './launch.js';
+import { createWorkbenchUrl, launchContextKey, resolveLaunchRef } from './launch.js';
 
 declare const __VSCODE_STATIC_URL__: string;
 
@@ -55,8 +55,11 @@ function synchronize(): void {
     existing?.remove();
     return;
   }
-  if (existing) return;
+  const contextKey = launchContextKey(context);
+  if (existing?.getAttribute('data-context') === contextKey) return;
+  existing?.remove();
   const host = document.createElement(launcherTag);
+  host.setAttribute('data-context', contextKey);
   const root = host.attachShadow({ mode: 'closed' });
   const button = document.createElement('button');
   button.type = 'button';

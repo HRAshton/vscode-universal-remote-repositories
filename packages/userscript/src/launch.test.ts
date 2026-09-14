@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BitbucketPageContext } from './context.js';
-import { createWorkbenchUrl, resolveLaunchRef } from './launch.js';
+import { createWorkbenchUrl, launchContextKey, resolveLaunchRef } from './launch.js';
 
 const context: BitbucketPageContext = {
   origin: 'https://stash.test',
@@ -34,6 +34,13 @@ describe('Bitbucket Data Center launch', () => {
 
     await expect(resolveLaunchRef({ ...context, ref: 'release/1.0' }, fetcher)).resolves.toBe('release/1.0');
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes launcher contexts after SPA navigation', () => {
+    expect(launchContextKey(context)).not.toBe(
+      launchContextKey({ ...context, repository: 'api', ref: 'release/1.0' }),
+    );
+    expect(launchContextKey(context)).toBe(launchContextKey({ ...context }));
   });
 });
 
