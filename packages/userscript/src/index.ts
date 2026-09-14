@@ -1,9 +1,9 @@
 import {
   BitbucketDataCenterAdapter,
   BitbucketDataCenterBridgeServer,
-  encodeRepositoryId,
 } from '@remote/bitbucket-datacenter-adapter';
 import { parseBitbucketPage } from './context.js';
+import { createWorkbenchUrl, resolveLaunchRef } from './launch.js';
 
 declare const __VSCODE_STATIC_URL__: string;
 
@@ -22,23 +22,6 @@ function randomCapability(): string {
   return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
-function createWorkbenchUrl(
-  context: NonNullable<ReturnType<typeof parseBitbucketPage>>,
-  capability: string,
-): URL {
-  const url = new URL(workbenchUrl);
-  const id = encodeRepositoryId({ project: context.project, repository: context.repository });
-  url.searchParams.set(
-    'folder',
-    `remote://bitbucket-datacenter/${id}?ref=${encodeURIComponent(context.ref ?? '')}`,
-  );
-  url.hash = new URLSearchParams({
-    'remote-bb-dc-capability': capability,
-    'remote-bb-dc-origin': context.origin,
-  }).toString();
-  return url;
-}
-
 function connect(event: MessageEvent<unknown>): void {
   const launch = activeLaunch;
   if (!launch || event.origin !== workbenchUrl.origin || event.source !== launch.child) return;
@@ -53,10 +36,10 @@ function connect(event: MessageEvent<unknown>): void {
     return;
   const port = event.ports[0];
   if (!port) return;
-  const apiBaseUrl = new URL(`${launch.contextPath}/rest/api/1.0/`, launch.origin).toString();
+  const apiUrl = new URL(`${launch.contextPath}/rest/api/1.0/`, launch.origin).toString();
   activePort?.close();
   activePort = port;
-  new BitbucketDataCenterBridgeServer(new BitbucketDataCenterAdapter({ apiBaseUrl }), {
+  new BitbucketDataCenterBridgeServer(new BitbucketDataCenterAdapter({ apiBaseUrl: apiUrl }), {
     writeFiles: !BLOCK_FILE_WRITES,
     manageBranches: true,
     createPullRequests: true,
@@ -81,13 +64,22 @@ function synchronize(): void {
   Object.assign(host.style, { position: 'fixed', top: '12px', right: '12px', zIndex: '2147483647' });
   button.addEventListener('click', () => {
     const capability = randomCapability();
-    const child = window.open(createWorkbenchUrl(context, capability).toString(), '_blank');
+    const child = window.open('about:blank', '_blank');
     if (!child) {
       button.textContent = 'Allow popups to open VS Code';
       return;
     }
-    activeLaunch = { capability, child, origin: context.origin, contextPath: context.contextPath };
-    button.textContent = 'VS Code opened';
+    button.textContent = 'Resolving repository branch…';
+    void resolveLaunchRef(context)
+      .then((ref) => {
+        activeLaunch = { capability, child, origin: context.origin, contextPath: context.contextPath };
+        child.location.replace(createWorkbenchUrl(workbenchUrl, context, ref, capability).toString());
+        button.textContent = 'VS Code opened';
+      })
+      .catch(() => {
+        child.close();
+        button.textContent = 'Could not resolve default branch';
+      });
   });
   root.append(button);
   document.documentElement.append(host);
