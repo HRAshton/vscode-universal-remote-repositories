@@ -2,6 +2,7 @@ import {
   BitbucketDataCenterAdapter,
   BitbucketDataCenterBridgeServer,
 } from '@remote/bitbucket-datacenter-adapter';
+import { disconnectBridgePort } from './bridge-port.js';
 import { parseBitbucketPage } from './context.js';
 import { createWorkbenchUrl, launchContextKey, resolveLaunchRef } from './launch.js';
 
@@ -37,7 +38,7 @@ function connect(event: MessageEvent<unknown>): void {
   const port = event.ports[0];
   if (!port) return;
   const apiUrl = new URL(`${launch.contextPath}/rest/api/1.0/`, launch.origin).toString();
-  activePort?.close();
+  disconnectBridgePort(activePort);
   activePort = port;
   new BitbucketDataCenterBridgeServer(new BitbucketDataCenterAdapter({ apiBaseUrl: apiUrl }), {
     writeFiles: !BLOCK_FILE_WRITES,
@@ -114,8 +115,7 @@ function observePage(): void {
 
 window.addEventListener('message', connect);
 window.addEventListener('pagehide', () => {
-  activePort?.postMessage({ type: 'disconnect' });
-  activePort?.close();
+  disconnectBridgePort(activePort);
   activePort = undefined;
 });
 if (document.readyState === 'loading')
