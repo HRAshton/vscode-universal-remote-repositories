@@ -132,6 +132,40 @@ describe('BitbucketDataCenterAdapter', () => {
     await expect(adapter.listDirectory(repositoryId, 'abc', '')).resolves.toHaveLength(2);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it('uses branch-utils to create and delete branches', async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') return json({ displayId: 'feature/demo', latestCommit: 'abc123' });
+      return new Response(null, { status: 204 });
+    });
+    const adapter = new BitbucketDataCenterAdapter({
+      apiBaseUrl: 'https://stash.example.test/bitbucket/rest/api/1.0/',
+      fetch: fetcher,
+    });
+    const repositoryId = encodeRepositoryId({ project: 'DEMO', repository: 'app' });
+
+    await expect(adapter.createBranch(repositoryId, 'feature/demo', 'abc123')).resolves.toEqual({
+      name: 'feature/demo',
+      head: 'abc123',
+    });
+    await adapter.deleteBranch(repositoryId, 'feature/demo');
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      new URL('https://stash.example.test/bitbucket/rest/branch-utils/1.0/projects/DEMO/repos/app/branches'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'feature/demo', startPoint: 'abc123' }),
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      new URL(
+        'https://stash.example.test/bitbucket/rest/branch-utils/1.0/projects/DEMO/repos/app/branches?name=feature%2Fdemo',
+      ),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
 });
 
 function json(value: unknown, status = 200): Response {
