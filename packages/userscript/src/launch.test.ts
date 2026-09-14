@@ -25,7 +25,10 @@ describe('Bitbucket Data Center launch', () => {
     );
 
     expect(ref).toBe('develop');
-    expect(url.searchParams.get('folder')).toContain('?ref=develop');
+    const folder = new URL(url.searchParams.get('folder') ?? '');
+    expect(folder.searchParams.get('ref')).toBe('develop');
+    expect(folder.searchParams.get('remote-bb-dc-capability')).toBe('12345678901234567890123456789012');
+    expect(folder.searchParams.get('remote-bb-dc-origin')).toBe('https://stash.test');
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 

@@ -7,16 +7,17 @@ if (!['http:', 'https:'].includes(workbenchUrl.protocol)) {
 const configuredBitbucketUrl = process.env.BITBUCKET_URL?.trim();
 const match = configuredBitbucketUrl ? `${validatedOrigin(configuredBitbucketUrl)}/*` : '*://*/*';
 
-await build({
-  entryPoints: ['src/index.ts'],
-  bundle: true,
-  format: 'iife',
-  platform: 'browser',
-  target: 'es2022',
-  outfile: 'dist/bitbucket-vscode.user.js',
-  define: { __VSCODE_STATIC_URL__: JSON.stringify(workbenchUrl.toString()) },
-  banner: {
-    js: `// ==UserScript==
+await Promise.all([
+  build({
+    entryPoints: ['./src/index.ts'],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2022',
+    outfile: './dist/bitbucket-vscode.user.js',
+    define: { __VSCODE_STATIC_URL__: JSON.stringify(workbenchUrl.toString()) },
+    banner: {
+      js: `// ==UserScript==
 // @name         Bitbucket Data Center VS Code
 // @namespace    universal-remote-repositories
 // @version      0.1.0-alpha.2
@@ -25,8 +26,17 @@ await build({
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==`,
-  },
-});
+    },
+  }),
+  build({
+    entryPoints: ['./src/workbench-relay.ts'],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2022',
+    outfile: './dist/bitbucket-vscode-workbench-relay.js',
+  }),
+]);
 
 function validatedOrigin(value) {
   const url = new URL(value);

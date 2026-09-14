@@ -48,9 +48,10 @@ pnpm build
 ```
 
 Build the Data Center extension and userscript with `pnpm build:datacenter`; set `BITBUCKET_URL` only to narrow
-the userscript to one origin, and `VSCODE_STATIC_URL` when the workbench is not on localhost. Deployment
-instructions are in `packages/userscript/README.md`. The Data Center extension is emitted separately under
-`packages/extension/dist/datacenter`; it never overwrites the Cloud extension bundle.
+the userscript to one origin, and `VSCODE_STATIC_URL` when the workbench is not on localhost. The generated
+top-level relay script must be loaded by the workbench so its extension-host worker can receive the bridge.
+Deployment instructions are in `packages/userscript/README.md`. The Data Center extension is emitted separately
+under `packages/extension/dist/datacenter`; it never overwrites the Cloud extension bundle.
 
 Run `pnpm test:e2e` after installing the Chromium browser with
 `pnpm exec playwright install chromium`. The first run also downloads the selected VS Code Web build.

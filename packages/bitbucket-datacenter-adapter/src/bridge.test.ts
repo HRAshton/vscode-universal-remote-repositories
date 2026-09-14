@@ -1,6 +1,12 @@
 import type { AdapterCapabilities, RemoteAdapter } from '@remote/core';
 import { describe, expect, it } from 'vitest';
-import { BitbucketDataCenterBridgeServer, createBridgeLaunch } from './bridge.js';
+import {
+  BitbucketDataCenterBridgeServer,
+  connectBitbucketDataCenterBridge,
+  createBridgeLaunch,
+  createBridgeLaunchFromQuery,
+  relayBitbucketDataCenterBridge,
+} from './bridge.js';
 
 const capabilities: AdapterCapabilities = {
   writeFiles: false,
@@ -26,6 +32,45 @@ describe('Bitbucket Data Center bridge', () => {
         ),
       ),
     ).toBeUndefined();
+    expect(
+      createBridgeLaunchFromQuery(
+        'ref=main&remote-bb-dc-capability=12345678901234567890123456789012&remote-bb-dc-origin=https%3A%2F%2Fstash.test',
+      ),
+    ).toEqual({
+      capability: '12345678901234567890123456789012',
+      bitbucketOrigin: 'https://stash.test',
+    });
+  });
+
+  it('relays the opener port into an extension-host worker channel', async () => {
+    const launch = {
+      capability: 'abcdefghijklmnopqrstuvwxyz123456',
+      bitbucketOrigin: 'https://stash.test',
+    };
+    const opener = {
+      postMessage: (_message: unknown, _targetOrigin: string, transfer: Transferable[]) => {
+        const port = transfer[0];
+        if (!(port instanceof MessagePort)) throw new Error('Expected bridge message port.');
+        new BitbucketDataCenterBridgeServer(
+          {
+            listRepositories: async () => [
+              { id: 'one', name: 'One', description: '', defaultBranch: 'main' },
+            ],
+          } as RemoteAdapter,
+          capabilities,
+        ).attach(port);
+      },
+    } as unknown as Pick<Window, 'postMessage'>;
+    const dispose = relayBitbucketDataCenterBridge(launch, opener);
+
+    try {
+      const adapter = await connectBitbucketDataCenterBridge({ launch });
+      await expect(adapter.listRepositories()).resolves.toEqual([
+        { id: 'one', name: 'One', description: '', defaultBranch: 'main' },
+      ]);
+    } finally {
+      dispose();
+    }
   });
 
   it('dispatches typed operations and rejects unknown operations', async () => {

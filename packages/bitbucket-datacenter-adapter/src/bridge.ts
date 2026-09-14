@@ -24,6 +24,19 @@ export type BitbucketDataCenterBridgeLaunch = {
   capability: string;
 };
 
+type BridgeTransport = {
+  onmessage: ((event: MessageEvent<unknown>) => void) | null;
+  onmessageerror: (() => void) | null;
+  postMessage(value: unknown): void;
+  start(): void;
+  close(): void;
+};
+
+type BroadcastBridgeMessage =
+  | { source: 'extension-host'; type: 'connect' }
+  | { source: 'extension-host'; type: 'message'; value: unknown }
+  | { source: 'workbench-relay'; value: unknown };
+
 type Operation =
   | 'listRepositories'
   | 'getRepository'
@@ -48,7 +61,10 @@ type ResponseMessage =
 type ReadyMessage = { type: 'ready'; version: typeof PROTOCOL_VERSION; capabilities: AdapterCapabilities };
 type DisconnectMessage = { type: 'disconnect' };
 
-export type BitbucketDataCenterBridgeOptions = { onDisconnect?: () => void };
+export type BitbucketDataCenterBridgeOptions = {
+  launch?: BitbucketDataCenterBridgeLaunch | undefined;
+  onDisconnect?: () => void;
+};
 
 const operations = new Set<Operation>([
   'listRepositories',
@@ -68,7 +84,14 @@ const operations = new Set<Operation>([
 ]);
 
 export function createBridgeLaunch(url: URL): BitbucketDataCenterBridgeLaunch | undefined {
-  const value = new URLSearchParams(url.hash.slice(1));
+  return createBridgeLaunchFromParams(new URLSearchParams(url.hash.slice(1)));
+}
+
+export function createBridgeLaunchFromQuery(query: string): BitbucketDataCenterBridgeLaunch | undefined {
+  return createBridgeLaunchFromParams(new URLSearchParams(query));
+}
+
+function createBridgeLaunchFromParams(value: URLSearchParams): BitbucketDataCenterBridgeLaunch | undefined {
   const capability = value.get('remote-bb-dc-capability');
   const origin = value.get('remote-bb-dc-origin');
   if (!capability || !origin || capability.length < 32) return undefined;
@@ -176,17 +199,81 @@ export class BitbucketDataCenterBridgeAdapter implements RemoteAdapter {
 export async function connectBitbucketDataCenterBridge(
   options: BitbucketDataCenterBridgeOptions = {},
 ): Promise<BitbucketDataCenterBridgeAdapter> {
-  const launch = createBridgeLaunch(new URL(globalThis.location.href));
-  if (!launch || !globalThis.window.opener)
-    throw new RemoteError('unavailable', 'Open VS Code from a Bitbucket Data Center tab.');
+  const launch = options.launch;
+  if (!launch) throw new RemoteError('unavailable', 'Open VS Code from a Bitbucket Data Center tab.');
+  const client = new BridgeClient(new BroadcastBridgeTransport(launch.capability), options.onDisconnect);
+  return new BitbucketDataCenterBridgeAdapter(client, await client.waitForReady());
+}
+
+export function relayBitbucketDataCenterBridge(
+  launch: BitbucketDataCenterBridgeLaunch,
+  opener: Pick<Window, 'postMessage'>,
+): () => void {
+  const broadcast = new BroadcastChannel(bridgeChannelName(launch.capability));
   const channel = new MessageChannel();
-  const client = new BridgeClient(channel.port1, options.onDisconnect);
-  globalThis.window.opener.postMessage(
+  const buffered: unknown[] = [];
+  let connected = false;
+  channel.port1.onmessage = (event) => {
+    if (connected) broadcast.postMessage({ source: 'workbench-relay', value: event.data });
+    else buffered.push(event.data);
+  };
+  channel.port1.start();
+  broadcast.onmessage = (event: MessageEvent<unknown>) => {
+    if (!isRecord(event.data) || event.data.source !== 'extension-host') return;
+    if (event.data.type === 'connect') {
+      connected = true;
+      for (const value of buffered.splice(0)) {
+        broadcast.postMessage({ source: 'workbench-relay', value } satisfies BroadcastBridgeMessage);
+      }
+      return;
+    }
+    if (event.data.type === 'message') channel.port1.postMessage(event.data.value);
+  };
+  opener.postMessage(
     { type: 'remote-bb-dc-connect', version: PROTOCOL_VERSION, capability: launch.capability },
     launch.bitbucketOrigin,
     [channel.port2],
   );
-  return new BitbucketDataCenterBridgeAdapter(client, await client.waitForReady());
+  return () => {
+    broadcast.postMessage({ source: 'workbench-relay', value: { type: 'disconnect' } });
+    broadcast.close();
+    channel.port1.close();
+  };
+}
+
+function bridgeChannelName(capability: string): string {
+  return `remote-bb-dc-${capability}`;
+}
+
+class BroadcastBridgeTransport implements BridgeTransport {
+  onmessage: ((event: MessageEvent<unknown>) => void) | null = null;
+  onmessageerror: (() => void) | null = null;
+  private readonly channel: BroadcastChannel;
+
+  constructor(capability: string) {
+    this.channel = new BroadcastChannel(bridgeChannelName(capability));
+    this.channel.onmessage = (event) => {
+      if (!isRecord(event.data) || event.data.source !== 'workbench-relay' || !('value' in event.data))
+        return;
+      this.onmessage?.(new MessageEvent('message', { data: event.data.value }));
+    };
+    this.channel.onmessageerror = () => this.onmessageerror?.();
+    this.channel.postMessage({ source: 'extension-host', type: 'connect' } satisfies BroadcastBridgeMessage);
+  }
+
+  postMessage(value: unknown): void {
+    this.channel.postMessage({
+      source: 'extension-host',
+      type: 'message',
+      value,
+    } satisfies BroadcastBridgeMessage);
+  }
+
+  start(): void {}
+
+  close(): void {
+    this.channel.close();
+  }
 }
 
 export class BitbucketDataCenterBridgeServer {
@@ -251,7 +338,7 @@ class BridgeClient {
   >();
 
   constructor(
-    private readonly port: MessagePort,
+    private readonly port: BridgeTransport,
     private readonly onDisconnect: (() => void) | undefined,
   ) {
     this.ready = new Promise((resolve, reject) => {
@@ -323,6 +410,7 @@ class BridgeClient {
     this.rejectReady(error);
     for (const pending of this.pending.values()) pending.reject(error);
     this.pending.clear();
+    this.port.close();
     this.onDisconnect?.();
   }
 }

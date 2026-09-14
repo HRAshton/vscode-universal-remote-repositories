@@ -19,10 +19,12 @@ export function createWorkbenchUrl(
   capability: string,
 ): URL {
   const url = new URL(workbenchUrl);
-  url.searchParams.set(
-    'folder',
-    `remote://bitbucket-datacenter/${repositoryId(context)}?ref=${encodeURIComponent(ref)}`,
-  );
+  const folderQuery = new URLSearchParams({
+    ref,
+    'remote-bb-dc-capability': capability,
+    'remote-bb-dc-origin': context.origin,
+  });
+  url.searchParams.set('folder', `remote://bitbucket-datacenter/${repositoryId(context)}?${folderQuery}`);
   url.hash = new URLSearchParams({
     'remote-bb-dc-capability': capability,
     'remote-bb-dc-origin': context.origin,

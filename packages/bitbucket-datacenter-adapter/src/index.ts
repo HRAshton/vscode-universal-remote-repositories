@@ -19,6 +19,8 @@ export {
   BitbucketDataCenterBridgeServer,
   connectBitbucketDataCenterBridge,
   createBridgeLaunch,
+  createBridgeLaunchFromQuery,
+  relayBitbucketDataCenterBridge,
 } from './bridge.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
