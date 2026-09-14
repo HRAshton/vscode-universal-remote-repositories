@@ -166,6 +166,43 @@ describe('BitbucketDataCenterAdapter', () => {
       expect.objectContaining({ method: 'DELETE' }),
     );
   });
+
+  it('qualifies pull request refs with their repository identity', async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      json({
+        id: 42,
+        title: 'Demo',
+        description: '',
+        state: 'OPEN',
+        fromRef: { displayId: 'feature/demo' },
+        toRef: { displayId: 'main' },
+      }),
+    );
+    const adapter = new BitbucketDataCenterAdapter({
+      apiBaseUrl: 'https://stash.example.test/rest/api/1.0/',
+      fetch: fetcher,
+    });
+    const repositoryId = encodeRepositoryId({ project: 'DEMO', repository: 'app' });
+
+    await adapter.createPullRequest(repositoryId, {
+      title: 'Demo',
+      description: '',
+      sourceBranch: 'feature/demo',
+      targetBranch: 'main',
+    });
+
+    const init = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      fromRef: {
+        id: 'refs/heads/feature/demo',
+        repository: { slug: 'app', project: { key: 'DEMO' } },
+      },
+      toRef: {
+        id: 'refs/heads/main',
+        repository: { slug: 'app', project: { key: 'DEMO' } },
+      },
+    });
+  });
 });
 
 function json(value: unknown, status = 200): Response {

@@ -219,8 +219,8 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
           body: JSON.stringify({
             title: input.title,
             description: input.description,
-            fromRef: { id: `refs/heads/${input.sourceBranch}` },
-            toRef: { id: `refs/heads/${input.targetBranch}` },
+            fromRef: pullRequestRef(input.sourceBranch, locator),
+            toRef: pullRequestRef(input.targetBranch, locator),
           }),
         }),
       ),
@@ -389,6 +389,13 @@ function branchUtilsBaseUrl(apiBaseUrl: URL): URL {
 
 function repositoryPath(locator: RepositoryLocator): string {
   return `projects/${encodeURIComponent(locator.project)}/repos/${encodeURIComponent(locator.repository)}`;
+}
+
+function pullRequestRef(branch: string, locator: RepositoryLocator) {
+  return {
+    id: `refs/heads/${branch}`,
+    repository: { slug: locator.repository, project: { key: locator.project } },
+  };
 }
 
 function encodePath(path: string): string {
