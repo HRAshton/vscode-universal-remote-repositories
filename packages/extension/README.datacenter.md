@@ -1,8 +1,13 @@
 # Universal Remote Repositories for Bitbucket Data Center
 
-This browser-only build reads Bitbucket Data Center repositories through the current same-origin browser
-session. It is intentionally read-only. It must be hosted by the Code-OSS bootstrap on the same origin as
-Bitbucket and built with the installation's `BITBUCKET_CONTEXT_PATH`.
+This browser extension connects to the Bitbucket Data Center tab that opened it. The tab's userscript makes
+same-origin REST requests with the current browser session; the workbench receives only typed repository
+provider results, never cookies or a general HTTP proxy.
 
-The extension does not read, store, or forward session cookies. The browser attaches HttpOnly cookies only
-to requests under the configured Bitbucket REST API path.
+Install the paired userscript, then open a repository page in Bitbucket and click **Open VS Code**. Keep that
+tab open while working. If it closes or the session expires, reopen the repository in Bitbucket and launch a
+fresh workbench from the userscript.
+
+Branch and pull-request actions use the current Data Center session. File commits are intentionally blocked by
+the immutable `BLOCK_FILE_WRITES` constant in the userscript until the target installation proves atomic
+stale-parent rejection.

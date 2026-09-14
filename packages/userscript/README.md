@@ -1,61 +1,22 @@
-# Bitbucket Data Center userscript host
+# Bitbucket Data Center VS Code bridge
 
-This package proves the same-origin artificial-page approach without requiring a Bitbucket plugin or a
-separate web server. On repository pages the userscript adds an **Open VS Code** button. The button opens an
-iframe at `<bitbucket-context-path>/__remote-vscode__/`; at document start the userscript replaces Bitbucket's
-404 document with an isolated application shell.
-
-## Build and install
-
-First build the self-contained session probe:
+Build the userscript for one Data Center installation and the local static Code - OSS workbench:
 
 ```powershell
-pnpm --filter @remote/bitbucket-datacenter-userscript build:demo
-```
-
-Commit `dist/demo-bootstrap.js` to a repository on the Data Center instance. Use the resulting full commit
-ID in its raw URL, then calculate the SHA-384 integrity value of the exact committed file and build both
-host artifacts:
-
-```powershell
-$bootstrap = Resolve-Path 'packages/userscript/dist/demo-bootstrap.js'
-$sha384 = [Security.Cryptography.SHA384]::Create()
-$integrity = 'sha384-' + [Convert]::ToBase64String($sha384.ComputeHash([IO.File]::ReadAllBytes($bootstrap)))
-$env:BITBUCKET_CONTEXT_PATH = '/bitbucket' # Use an empty string when Bitbucket is hosted at /
-$env:BITBUCKET_BOOTSTRAP_URL = 'https://bitbucket.example.com/bitbucket/projects/TOOLS/repos/vscode/raw/dist/demo-bootstrap.js?at=<full-commit-id>'
-$env:BITBUCKET_BOOTSTRAP_INTEGRITY = $integrity
+$env:VSCODE_STATIC_URL = 'http://localhost:8080/'
+$env:BITBUCKET_URL = 'https://bitbucket.example.com/bitbucket/' # optional: narrows @match to this origin
 pnpm --filter @remote/bitbucket-datacenter-userscript build
 pnpm --filter universal-remote-repositories build:datacenter
 ```
 
-Install `dist/bitbucket-vscode.user.js` in Tampermonkey. Its exact `@match` origin and context path are derived
-from the pinned bootstrap URL and `BITBUCKET_CONTEXT_PATH`; the build cannot accidentally target every site.
+The GitHub Release userscript uses a broad match so it can work with any Data Center origin. Set
+`BITBUCKET_URL` for a deployment-specific build. Install `dist/bitbucket-vscode.user.js` in Tampermonkey. On a repository page, **Open VS Code** opens the
+configured local workbench in a top-level window. The user-clicked launch creates a one-time capability and a
+private message channel tied to that exact child window and the configured local origin.
 
-The userscript refuses to build with a branch or tag bootstrap URL. At runtime the browser also enforces the
-embedded SHA-384 digest before executing the module. A successful demo reports the repository's default
-branch, compatible browse response shape, and Data Center version when that endpoint is available. Record
-that result as the live compatibility proof for the deployed Data Center version.
+The bridge exposes only `RemoteAdapter` operations. It rejects arbitrary HTTP requests and never forwards
+cookies, headers, or tokens to the workbench. Keep the Bitbucket tab open; reopen it and click **Open VS Code**
+to recover after a disconnect.
 
-## Bootstrap contract
-
-Before loading the configured ES module, the shell defines `window.__REMOTE_VSCODE_CONTEXT__`:
-
-```ts
-{
-  provider: 'bitbucket-datacenter';
-  origin: string;
-  contextPath: string;
-  project: string;
-  repository: string;
-  ref?: string;
-}
-```
-
-A Code-OSS bootstrap should be bundled into one integrity-checked module. It should read this value, create
-the corresponding
-`remote://bitbucket-datacenter/<repository-id>?ref=<ref>` workspace URI, and start the workbench with the
-Data Center extension from `packages/extension/dist/datacenter`. The shell accepts only the exact bootstrap
-module baked into the userscript, from the current Bitbucket origin, with matching integrity. Dynamic
-Code-OSS assets need their own immutable URLs or integrity controls. Whether a full Code-OSS build can load
-from raw repository endpoints still depends on the installation's MIME types and Content Security Policy;
-the demo proves the prerequisite path first.
+`BLOCK_FILE_WRITES` is an immutable userscript-bundle constant and defaults to `true`. It must remain true
+until a live target installation proves conditional file updates reject stale parents atomically.

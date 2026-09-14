@@ -90,7 +90,11 @@ importers:
         specifier: workspace:*
         version: link:../fake-adapter
 
-  packages/userscript: {}
+  packages/userscript:
+    dependencies:
+      '@remote/bitbucket-datacenter-adapter':
+        specifier: workspace:*
+        version: link:../bitbucket-datacenter-adapter
 
 packages:
 

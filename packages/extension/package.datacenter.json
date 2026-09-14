@@ -2,7 +2,7 @@
   "name": "universal-remote-repositories-datacenter",
   "displayName": "Universal Remote Repositories for Bitbucket Data Center",
   "description": "Browse Bitbucket Data Center repositories using the current browser session.",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.2",
   "publisher": "hrashton",
   "license": "MIT",
   "repository": {
@@ -30,6 +30,22 @@
       {
         "command": "remote.switchBranch",
         "title": "Remote: Switch Branch"
+      },
+      {
+        "command": "remote.createBranch",
+        "title": "Remote: Create Branch"
+      },
+      {
+        "command": "remote.deleteBranch",
+        "title": "Remote: Delete Branch"
+      },
+      {
+        "command": "remote.createPullRequest",
+        "title": "Remote: Create Pull Request"
+      },
+      {
+        "command": "remote.commit",
+        "title": "Commit"
       },
       {
         "command": "remote.viewHistory",

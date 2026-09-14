@@ -20,11 +20,11 @@ gh attestation verify universal-remote-repositories.vsix \
   atomic commits, refresh behavior, and typed errors. It has no VS Code or provider SDK dependencies.
 - `@remote/fake-adapter` implements every adapter capability with deterministic in-memory data.
 - `@remote/bitbucket-adapter` implements Bitbucket Cloud REST API v2 with scoped API-token authentication.
-- `@remote/bitbucket-datacenter-adapter` implements read-only Bitbucket Data Center REST API 1.0 using the
-  current same-origin browser session.
+- `@remote/bitbucket-datacenter-adapter` implements Bitbucket Data Center REST API 1.0 through a narrow,
+  authenticated browser-tab bridge.
 - `universal-remote-repositories` is the thin VS Code web extension. It owns URI translation and VS Code UI only.
-- `@remote/bitbucket-datacenter-userscript` provides the artificial-route iframe host and a session test
-  bootstrap for Data Center deployments without a separate web server.
+- `@remote/bitbucket-datacenter-userscript` launches the local workbench from a Bitbucket tab and performs the
+  authenticated, typed provider RPC without exposing session cookies.
 - `@remote/integration-tests` contains reusable adapter contract tests and end-to-end core behavior tests.
 - `@remote/e2e` starts VS Code Web with `@vscode/test-web` and drives a browser smoke test with Playwright.
 
@@ -47,9 +47,9 @@ pnpm test
 pnpm build
 ```
 
-Build the Data Center extension and userscript with `pnpm build:datacenter` after setting its context path,
-pinned bootstrap URL, and integrity environment variables. Deployment and bootstrap instructions
-are in `packages/userscript/README.md`. The Data Center extension is emitted separately under
+Build the Data Center extension and userscript with `pnpm build:datacenter`; set `BITBUCKET_URL` only to narrow
+the userscript to one origin, and `VSCODE_STATIC_URL` when the workbench is not on localhost. Deployment
+instructions are in `packages/userscript/README.md`. The Data Center extension is emitted separately under
 `packages/extension/dist/datacenter`; it never overwrites the Cloud extension bundle.
 
 Run `pnpm test:e2e` after installing the Chromium browser with

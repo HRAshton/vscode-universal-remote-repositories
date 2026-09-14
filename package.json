@@ -1,7 +1,7 @@
 {
   "name": "vscode-universal-remote-repositories",
   "private": true,
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
     "setup": "pnpm install --frozen-lockfile",
@@ -19,7 +19,8 @@
     "build": "pnpm --filter universal-remote-repositories build",
     "build:datacenter": "pnpm --filter @remote/bitbucket-datacenter-userscript build && pnpm --filter universal-remote-repositories build:datacenter",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
-    "package:vsix": "pnpm build && node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\" && pnpm --dir packages/extension exec vsce package --no-dependencies --out ../../artifacts/universal-remote-repositories.vsix"
+    "package:vsix": "pnpm build && node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\" && pnpm --dir packages/extension exec vsce package --no-dependencies --out ../../artifacts/universal-remote-repositories.vsix",
+    "package:vsix:datacenter": "pnpm build:datacenter && node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\" && pnpm --dir packages/extension/dist/datacenter exec vsce package --no-dependencies --out ../../../../artifacts/universal-remote-repositories-datacenter.vsix"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

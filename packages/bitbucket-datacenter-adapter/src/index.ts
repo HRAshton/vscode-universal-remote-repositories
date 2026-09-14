@@ -13,6 +13,14 @@ import {
   type TreeEntry,
 } from '@remote/core';
 
+export {
+  BitbucketDataCenterBridgeAdapter,
+  type BitbucketDataCenterBridgeOptions,
+  BitbucketDataCenterBridgeServer,
+  connectBitbucketDataCenterBridge,
+  createBridgeLaunch,
+} from './bridge.js';
+
 const DEFAULT_TIMEOUT_MS = 30_000;
 const PAGE_LIMIT = 100;
 
@@ -136,12 +144,35 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async createBranch(): Promise<Branch> {
-    throw unsupported('Branch creation');
+  async createBranch(
+    repositoryId: string,
+    name: string,
+    fromCommit: string,
+    options?: RemoteRequestOptions,
+  ): Promise<Branch> {
+    const locator = decodeRepositoryId(repositoryId);
+    const branch = record(
+      await this.getJson(`${repositoryPath(locator)}/branches`, options, {
+        method: 'POST',
+        body: JSON.stringify({ name, startPoint: fromCommit }),
+      }),
+    );
+    return {
+      name: requiredString(branch, 'displayId', 'branch'),
+      head: requiredString(branch, 'latestCommit', 'branch'),
+    };
   }
 
-  async deleteBranch(): Promise<void> {
-    throw unsupported('Branch deletion');
+  async deleteBranch(repositoryId: string, name: string, options?: RemoteRequestOptions): Promise<void> {
+    const locator = decodeRepositoryId(repositoryId);
+    await this.request(
+      `${repositoryPath(locator)}/branches/${encodeURIComponent(name)}`,
+      options,
+      'application/json',
+      {
+        method: 'DELETE',
+      },
+    );
   }
 
   async listCommits(
@@ -167,8 +198,25 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     );
   }
 
-  async createPullRequest(_repositoryId: string, _input: CreatePullRequestInput): Promise<PullRequest> {
-    throw unsupported('Pull request creation');
+  async createPullRequest(
+    repositoryId: string,
+    input: CreatePullRequestInput,
+    options?: RemoteRequestOptions,
+  ): Promise<PullRequest> {
+    const locator = decodeRepositoryId(repositoryId);
+    return toPullRequest(
+      record(
+        await this.getJson(`${repositoryPath(locator)}/pull-requests`, options, {
+          method: 'POST',
+          body: JSON.stringify({
+            title: input.title,
+            description: input.description,
+            fromRef: { id: `refs/heads/${input.sourceBranch}` },
+            toRef: { id: `refs/heads/${input.targetBranch}` },
+          }),
+        }),
+      ),
+    );
   }
 
   async listCommitStatuses(): Promise<CommitStatus[]> {
@@ -221,8 +269,8 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     }
   }
 
-  private async getJson(path: string, options?: RemoteRequestOptions): Promise<unknown> {
-    const response = await this.request(path, options);
+  private async getJson(path: string, options?: RemoteRequestOptions, init?: RequestInit): Promise<unknown> {
+    const response = await this.request(path, options, 'application/json', init);
     const contentType = response.headers.get('Content-Type') ?? '';
     if (contentType.includes('text/html')) {
       throw new RemoteError('authentication', 'Bitbucket returned a login page. Sign in and try again.');
@@ -238,6 +286,7 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     path: string,
     options?: RemoteRequestOptions,
     accept = 'application/json',
+    init?: RequestInit,
   ): Promise<Response> {
     const url = new URL(path.replace(/^\//u, ''), this.apiBaseUrl);
     if (url.origin !== this.apiBaseUrl.origin || !url.pathname.startsWith(this.apiBaseUrl.pathname)) {
@@ -247,9 +296,14 @@ export class BitbucketDataCenterAdapter implements RemoteAdapter {
     try {
       const response = await this.fetcher(url, {
         credentials: 'same-origin',
-        headers: { Accept: accept },
+        headers: {
+          Accept: accept,
+          ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...init?.headers,
+        },
         redirect: 'manual',
         signal: linked.signal,
+        ...init,
       });
       if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
         throw new RemoteError('authentication', 'Bitbucket redirected the request. Sign in and try again.');
