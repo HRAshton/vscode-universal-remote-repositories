@@ -2,7 +2,7 @@
   "name": "vscode-universal-remote-repositories",
   "private": true,
   "version": "0.1.0-alpha.2",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@10.34.9",
   "scripts": {
     "setup": "pnpm install --frozen-lockfile",
     "format": "biome format --write .",
@@ -23,11 +23,11 @@
     "package:vsix:datacenter": "pnpm build:datacenter && node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\" && pnpm --dir packages/extension/dist/datacenter exec vsce package --no-dependencies --out ../../../../artifacts/universal-remote-repositories-datacenter.vsix"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
+    "@biomejs/biome": "2.6.6",
     "@playwright/test": "^1.63.0",
-    "@types/node": "^24.3.0",
+    "@types/node": "^26.0.0",
     "@types/vscode": "^1.103.0",
-    "@vscode/vsce": "^3.6.2",
+    "@vscode/vsce": "^4.0.0",
     "@vscode/test-web": "^0.0.81",
     "esbuild": "^0.28.2",
     "playwright": "^1.63.0",
